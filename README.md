@@ -58,31 +58,15 @@ import { randomBytes } from "node:crypto";
 // Generate key and IV
 const key = randomBytes(32);
 const iv = randomBytes(64);
+const plainText = [
+  Buffer.from("Hello, "),
+  Buffer.from("World!")
+]
 
-// Encrypt data
-async function* generateData() {
-  yield Buffer.from("Hello, ");
-  yield Buffer.from("world!");
-}
+const encrypted = await Array.fromAsync(hmacEncrypt(key, iv, plainText));
+const decrypted = await Array.fromAsync(hmacDecrypt(key, iv, encrypted));
 
-const encrypted: Buffer[] = [];
-for await (const block of hmacEncrypt(key, iv, generateData())) {
-  encrypted.push(block);
-}
-
-// Decrypt data
-async function* encryptedStream() {
-  for (const block of encrypted) {
-    yield block;
-  }
-}
-
-const decrypted: Buffer[] = [];
-for await (const block of hmacDecrypt(key, iv, encryptedStream())) {
-  decrypted.push(block);
-}
-
-console.log(Buffer.concat(decrypted).toString()); // "Hello, world!"
+console.log(Buffer.concat(decrypted).toString()); // Hello, World!
 ```
 
 ### File Encryption with Bun
@@ -95,63 +79,30 @@ const key = randomBytes(32);
 const iv = randomBytes(64);
 
 // Encrypt a file
-const plainFile = Bun.file("plaintext.txt");
-const encryptedChunks: Buffer[] = [];
-
-for await (const chunk of hmacEncrypt(key, iv, plainFile.stream())) {
-  encryptedChunks.push(chunk);
-}
-
-await Bun.write("encrypted.bin", Buffer.concat(encryptedChunks));
+const encrypted = await Array.fromAsync(hmacEncrypt(key, iv, Bun.file("plaintext.txt").stream()));
+await Bun.write("encrypted.bin", Buffer.concat(encrypted));
 
 // Decrypt the file
-async function* encryptedFileStream() {
-  const file = Bun.file("encrypted.bin");
-  const reader = file.stream().getReader();
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    yield Buffer.from(value);
-  }
-}
-
-const decryptedChunks: Buffer[] = [];
-for await (const chunk of hmacDecrypt(key, iv, encryptedFileStream())) {
-  decryptedChunks.push(chunk);
-}
-
-await Bun.write("decrypted.txt", Buffer.concat(decryptedChunks));
+const decrypted = await Array.fromAsync(hmacDecrypt(key, iv, Bun.file("encrypted.bin").stream()));
+await Bun.write("decrypted.txt", Buffer.concat(decrypted));
 ```
 
 ### Node.js Streams Compatibility
 
 ```ts
-import { hmacEncrypt, hmacDecrypt } from "hmac-sha256-feistel-cfb";
+import { hmacEncrypt } from "hmac-sha256-feistel-cfb";
 import { Readable } from "node:stream";
 import { randomBytes } from "node:crypto";
 
 const key = randomBytes(32);
 const iv = randomBytes(64);
-
-// Convert Node.js Readable to async iterable
-async function* nodeStreamToAsyncIterable(stream: Readable) {
-  for await (const chunk of stream) {
-    yield chunk;
-  }
-}
-
 const readable = Readable.from([
   Buffer.from("Hello"),
   Buffer.from(" from "),
-  Buffer.from("Node.js!")
+  Buffer.from("Node.js!"),
 ]);
 
-const encrypted: Buffer[] = [];
-for await (const block of hmacEncrypt(key, iv, nodeStreamToAsyncIterable(readable))) {
-  encrypted.push(block);
-}
-
+const encrypted = await Array.fromAsync(hmacEncrypt(key, iv, readable));
 console.log("Encrypted:", Buffer.concat(encrypted));
 ```
 
