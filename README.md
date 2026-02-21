@@ -103,7 +103,7 @@ const readable = Readable.from([
 ]);
 
 const encrypted = hmacEncrypt(key, iv, readable);
-console.log("Encrypted:", Buffer.concat(eawait Array.fromAsync(ncrypted)));
+console.log("Encrypted:", Buffer.concat(await Array.fromAsync(ncrypted)));
 ```
 
 ## How It Works
